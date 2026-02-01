@@ -1,0 +1,57 @@
+from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
+
+# We are going to see whether a function is balanced or constant 
+
+# We will feed the plus state and the ancilla qubit of the minus state into a hard-coded
+# phase oracle Uf. Then we will measure the main qubit.
+
+# If the result is a plus state, the function is constant
+# If the result is a minus state, the function is balanced.
+
+def some_balanced_function(x):
+    if x == 1:
+        return 0
+    else:
+        return 1
+    
+def some_constant_function(x):
+    return 1
+
+# this is supposed to be a CIRCUIT (so no, not more computations)
+# fix: need to pass circ explicitly, not qubit/ancilla numbers
+def phase_oracle(circ, func):
+    if func(0) != func(1):
+        circ.cx(0,1)   # balanced → CNOT
+    else:
+        if func(0) == 1:
+            circ.x(1)   # constant → flip ancilla if f(0)=1
+
+# classicaly, we would need two steps. With quantum computation, we only need 1
+# this is because we will use quantum parallelism
+
+circ = QuantumCircuit(2, 1)
+
+circ.h(0)   # main qubit → |+>
+circ.x(1)   # ancilla → |1>
+circ.h(1)   # ancilla → |−>
+
+# Bit 0: PLUS state, bit 1: MINUS state
+
+phase_oracle(circ, some_balanced_function)   # try some_constant_function here
+
+circ.h(0)   # interference step
+
+circ.measure(0, 0)
+
+print(circ)
+
+# We can actually simulate results (thanks to Qiskit)
+
+simulator = AerSimulator() 
+
+job = simulator.run(circuits=circ, shots=666)
+result = job.result()
+
+counts = result.get_counts()
+print("Measurement was done", counts,"times")
